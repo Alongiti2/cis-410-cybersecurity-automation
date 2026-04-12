@@ -16,3 +16,10 @@ This repository is my CIS 410: Cybersecurity Automation course portfolio. In thi
 
 ## Fun Fact
 I have a strong background in cybersecurity, cloud architecture, and hands-on technical learning.
+## My Week 2 Infrastructure
+
+Runner VM: ub-server
+Runner IP: 192.168.1.206
+Pipeline status: [![Hello Pipeline](https://github.com/Alongiti2/cis-410-cybersecurity-automation/actions/workflows/hello-pipeline.yml/badge.svg)](https://github.com/Alongiti2/cis-410-cybersecurity-automation/actions/workflows/hello-pipeline.yml)
+
+
