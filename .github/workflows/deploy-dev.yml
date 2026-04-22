@@ -1,1 +1,77 @@
+name: "Deploy - Dev Server"
 
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: "Build and Deploy Flask Container"
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image on runner
+        run: |
+          docker build -t flask-app:latest .
+          docker images | grep flask-app
+
+      - name: Save image to tarball
+        run: |
+          docker save flask-app:latest | gzip > flask-app.tar.gz
+          ls -lh flask-app.tar.gz
+
+      - name: Copy image to Dev VM
+        run: |
+          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+
+          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no \
+            flask-app.tar.gz \
+            ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }}:/tmp/flask-app.tar.gz
+
+      - name: Load and run container on Dev VM
+        run: |
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }} << 'EOF'
+              set -e
+              echo "=== Loading image ==="
+              docker load < /tmp/flask-app.tar.gz
+
+              echo "=== Stopping old container if running ==="
+              docker stop flask-app 2>/dev/null || true
+              docker rm flask-app 2>/dev/null || true
+
+              echo "=== Starting new container ==="
+              docker run -d \
+                --name flask-app \
+                -p 5000:5000 \
+                --restart unless-stopped \
+                flask-app:latest
+
+              echo "=== Container status ==="
+              docker ps | grep flask-app
+
+              echo "=== Verify non-root user ==="
+              docker exec flask-app whoami
+
+              echo "=== Cleanup tarball ==="
+              rm /tmp/flask-app.tar.gz
+          EOF
+
+      - name: Cleanup local artifacts
+        if: always()
+        run: |
+          rm -f flask-app.tar.gz
+          rm -f /tmp/deploy_key
+
+      - name: Smoke test - curl the app
+        run: |
+          sleep 3
+          curl -sS --fail http://${{ secrets.DEV_HOST }}:5000 || \
+            (echo "App did not respond on port 5000" && exit 1)
+          echo "=== App is live at http://${{ secrets.DEV_HOST }}:5000 ==="

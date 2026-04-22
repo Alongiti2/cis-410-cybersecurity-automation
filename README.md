@@ -13,7 +13,6 @@ This repository is my CIS 410: Cybersecurity Automation course portfolio. In thi
 - How to use Git and GitHub professionally
 - How to build secure CI/CD pipelines
 - How to automate security checks and deployments
-
 ## Fun Fact
 I have a strong background in cybersecurity, cloud architecture, and hands-on technical learning.
 ## My Week 2 Infrastructure
@@ -21,7 +20,13 @@ I have a strong background in cybersecurity, cloud architecture, and hands-on te
 Runner VM: ub-server
 Runner IP: 192.168.1.206
 Pipeline status: [![Hello Pipeline](https://github.com/Alongiti2/cis-410-cybersecurity-automation/actions/workflows/hello-pipeline.yml/badge.svg)](https://github.com/Alongiti2/cis-410-cybersecurity-automation/actions/workflows/hello-pipeline.yml)
+## My Week 3 Infrastructure
 
+- **Dev VM hostname:** server
+- **Dev VM IP:** 192.168.1.207
+- **App URL:** http://192.168.1.207:5000
+- **Container runs as non-root user**
 
-git checkout main
-git pull origin main
+### Workflows
+- `setup-dev.yml` — installs Docker on the Dev VM (manual trigger)
+- `deploy-dev.yml` — builds image on runner, deploys container to Dev VM (on push to main)
