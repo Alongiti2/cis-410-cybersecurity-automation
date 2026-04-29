@@ -1,77 +1,50 @@
-name: "Deploy - Dev Server"
+name: "Deploy — Dev"
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   deploy:
-    name: "Build and Deploy Flask Container"
+    name: "Deploy to Dev"
     runs-on: self-hosted
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Docker image on runner
+      - name: Copy app files to Dev VM
         run: |
-          docker build -t flask-app:latest .
-          docker images | grep flask-app
+          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
+          chmod 600 /tmp/dev_key
+          scp -i /tmp/dev_key -o StrictHostKeyChecking=no -r \
+            app/ Dockerfile .dockerignore docker-compose.yml \
+            ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }}:/opt/app/
+          rm /tmp/dev_key
 
-      - name: Save image to tarball
+      - name: Deploy Flask container on Dev
         run: |
-          docker save flask-app:latest | gzip > flask-app.tar.gz
-          ls -lh flask-app.tar.gz
-
-      - name: Copy image to Dev VM
-        run: |
-          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-
-          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no \
-            flask-app.tar.gz \
-            ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }}:/tmp/flask-app.tar.gz
-
-      - name: Load and run container on Dev VM
-        run: |
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no \
+          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
+          chmod 600 /tmp/dev_key
+          ssh -i /tmp/dev_key -o StrictHostKeyChecking=no \
             ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }} << 'EOF'
-              set -e
-              echo "=== Loading image ==="
-              docker load < /tmp/flask-app.tar.gz
-
-              echo "=== Stopping old container if running ==="
-              docker stop flask-app 2>/dev/null || true
-              docker rm flask-app 2>/dev/null || true
-
-              echo "=== Starting new container ==="
-              docker run -d \
-                --name flask-app \
-                -p 5000:5000 \
-                --restart unless-stopped \
-                flask-app:latest
-
-              echo "=== Container status ==="
-              docker ps | grep flask-app
-
-              echo "=== Verify non-root user ==="
-              docker exec flask-app whoami
-
-              echo "=== Cleanup tarball ==="
-              rm /tmp/flask-app.tar.gz
+          set -e
+          cd /opt/app
+          export HOST_PORT=5000
+          export ENVIRONMENT=dev
+          export DEPLOY_TIME="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          export GITHUB_SHA="${{ github.sha }}"
+          export GITHUB_REF_NAME="${{ github.ref_name }}"
+          sudo docker compose down --remove-orphans
+          sudo HOST_PORT="${HOST_PORT}" ENVIRONMENT="${ENVIRONMENT}" \
+            DEPLOY_TIME="${DEPLOY_TIME}" GITHUB_SHA="${GITHUB_SHA}" \
+            GITHUB_REF_NAME="${GITHUB_REF_NAME}" \
+            docker compose up -d --build
+          sudo docker compose ps
           EOF
+          rm /tmp/dev_key
 
-      - name: Cleanup local artifacts
-        if: always()
+      - name: Smoke test
         run: |
-          rm -f flask-app.tar.gz
-          rm -f /tmp/deploy_key
-
-      - name: Smoke test - curl the app
-        run: |
-          sleep 3
-          curl -sS --fail http://${{ secrets.DEV_HOST }}:5000 || \
-            (echo "App did not respond on port 5000" && exit 1)
-          echo "=== App is live at http://${{ secrets.DEV_HOST }}:5000 ==="
+          sleep 4
+          curl -f "http://${{ secrets.DEV_HOST }}:5000/health" | python3 -m json.tool
+          echo '=== Dev deploy complete ==='

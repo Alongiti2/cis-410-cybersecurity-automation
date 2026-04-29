@@ -1,0 +1,50 @@
+name: "Deploy — Staging"
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: "Deploy to Staging"
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy app files to Staging VM
+        run: |
+          echo "${{ secrets.STAGING_SSH_KEY }}" > /tmp/staging_key
+          chmod 600 /tmp/staging_key
+          scp -i /tmp/staging_key -o StrictHostKeyChecking=no -r \
+            app/ Dockerfile .dockerignore docker-compose.yml \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/app/
+          rm /tmp/staging_key
+
+      - name: Deploy Flask container on Staging
+        run: |
+          echo "${{ secrets.STAGING_SSH_KEY }}" > /tmp/staging_key
+          chmod 600 /tmp/staging_key
+          ssh -i /tmp/staging_key -o StrictHostKeyChecking=no \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+          set -e
+          cd /opt/app
+          export HOST_PORT=5001
+          export ENVIRONMENT=staging
+          export DEPLOY_TIME="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          export GITHUB_SHA="${{ github.sha }}"
+          export GITHUB_REF_NAME="${{ github.ref_name }}"
+          docker compose down --remove-orphans
+          HOST_PORT="${HOST_PORT}" ENVIRONMENT="${ENVIRONMENT}" \
+            DEPLOY_TIME="${DEPLOY_TIME}" GITHUB_SHA="${GITHUB_SHA}" \
+            GITHUB_REF_NAME="${GITHUB_REF_NAME}" \
+            docker compose up -d --build
+          docker compose ps
+          EOF
+          rm /tmp/staging_key
+
+      - name: Smoke test
+        run: |
+          sleep 4
+          curl -f "http://${{ secrets.STAGING_HOST }}:5001/health" | python3 -m json.tool
+          echo "=== Staging deploy complete ==="

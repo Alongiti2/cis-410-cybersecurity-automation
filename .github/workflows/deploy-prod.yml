@@ -1,0 +1,50 @@
+name: "Deploy — Prod"
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: "Deploy to Prod"
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy app files to Prod VM
+        run: |
+          echo "${{ secrets.PROD_SSH_KEY }}" > /tmp/prod_key
+          chmod 600 /tmp/prod_key
+          scp -i /tmp/prod_key -o StrictHostKeyChecking=no -r \
+            app/ Dockerfile .dockerignore docker-compose.yml \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/app/
+          rm /tmp/prod_key
+
+      - name: Deploy Flask container on Prod
+        run: |
+          echo "${{ secrets.PROD_SSH_KEY }}" > /tmp/prod_key
+          chmod 600 /tmp/prod_key
+          ssh -i /tmp/prod_key -o StrictHostKeyChecking=no \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+          set -e
+          cd /opt/app
+          export HOST_PORT=5002
+          export ENVIRONMENT=production
+          export DEPLOY_TIME="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          export GITHUB_SHA="${{ github.sha }}"
+          export GITHUB_REF_NAME="${{ github.ref_name }}"
+          docker compose down --remove-orphans
+          HOST_PORT="${HOST_PORT}" ENVIRONMENT="${ENVIRONMENT}" \
+            DEPLOY_TIME="${DEPLOY_TIME}" GITHUB_SHA="${GITHUB_SHA}" \
+            GITHUB_REF_NAME="${GITHUB_REF_NAME}" \
+            docker compose up -d --build
+          docker compose ps
+          EOF
+          rm /tmp/prod_key
+
+      - name: Smoke test
+        run: |
+          sleep 4
+          curl -f "http://${{ secrets.PROD_HOST }}:5002/health" | python3 -m json.tool
+          echo "=== Prod deploy complete ==="
