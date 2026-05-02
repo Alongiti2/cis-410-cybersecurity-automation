@@ -15,12 +15,12 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: pip install -r app/requirements.txt
-      - name: Run Snyk to check for dependency vulnerabilities
-        uses: snyk/actions/python-3.10@master
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+      - name: Run Snyk Open Source scan
+        run: snyk test --file=app/requirements.txt --severity-threshold=high --package-manager=pip
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --file=app/requirements.txt
 
   snyk-code:
     name: Snyk Code (SAST)
