@@ -1,0 +1,46 @@
+﻿name: Snyk Security Scan
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  snyk-deps:
+    name: Snyk Open Source (deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Snyk to check for dependency vulnerabilities
+        uses: snyk/actions/python-3.10@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=app/requirements.txt
+
+  snyk-code:
+    name: Snyk Code (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Snyk Code analysis
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --severity-threshold=high
+
+  snyk-container:
+    name: Snyk Container (Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker image
+        run: docker build -t corpdirectory:test .
+      - name: Run Snyk Container scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: corpdirectory:test
+          args: --severity-threshold=high
