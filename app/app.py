@@ -1,3 +1,4 @@
+# Week 5: Security verified - parameterized queries, XSS escaped, debug=False
 import os
 import sqlite3
 import socket
