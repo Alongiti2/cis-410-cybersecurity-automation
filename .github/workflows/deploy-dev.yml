@@ -1,4 +1,4 @@
-name: "Deploy — Dev"
+﻿name: "Deploy - Dev"
 
 on:
   push:
@@ -11,17 +11,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-<<<<<<< HEAD
 
       - name: Copy app files to Dev VM
-=======
-- name: Install Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
-          sudo systemctl start docker
-      - name: Build Docker image on runner
->>>>>>> eae0c06d2b841dcd294848cbe5547f4762597725
         run: |
           echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
           chmod 600 /tmp/dev_key
@@ -40,14 +31,8 @@ jobs:
           cd /opt/app
           export HOST_PORT=5000
           export ENVIRONMENT=dev
-          export DEPLOY_TIME="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          export GITHUB_SHA="${{ github.sha }}"
-          export GITHUB_REF_NAME="${{ github.ref_name }}"
           sudo docker compose down --remove-orphans
-          sudo HOST_PORT="${HOST_PORT}" ENVIRONMENT="${ENVIRONMENT}" \
-            DEPLOY_TIME="${DEPLOY_TIME}" GITHUB_SHA="${GITHUB_SHA}" \
-            GITHUB_REF_NAME="${GITHUB_REF_NAME}" \
-            docker compose up -d --build
+          sudo docker compose up -d --build
           sudo docker compose ps
           EOF
           rm /tmp/dev_key
