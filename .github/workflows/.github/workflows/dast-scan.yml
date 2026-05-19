@@ -1,0 +1,14 @@
+name: OWASP ZAP DAST Scan
+on:
+  workflow_dispatch:
+
+jobs:
+  zap-scan:
+    runs-on: self-hosted
+    steps:
+      - name: Run ZAP Baseline Scan
+        run: |
+          docker run --rm ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://${{ secrets.DEV_HOST }}:5000 \
+            -r zap-report.html \
+            -I
