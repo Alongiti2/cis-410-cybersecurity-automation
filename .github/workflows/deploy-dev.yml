@@ -23,7 +23,7 @@ jobs:
 
       - name: Deploy Flask container on Dev
         run: |
-          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
+          printf "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
           chmod 600 /tmp/dev_key
           ssh -i /tmp/dev_key -o StrictHostKeyChecking=no \
             ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }} << 'EOF'
