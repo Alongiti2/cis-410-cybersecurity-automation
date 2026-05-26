@@ -14,7 +14,7 @@ jobs:
 
       - name: Copy app files to Dev VM
         run: |
-          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
+          echo "${{ secrets.DEV_SSH_KEY }}" | base64 -d > /tmp/dev_key
           chmod 600 /tmp/dev_key
           scp -i /tmp/dev_key -o StrictHostKeyChecking=no -r \
             app/ Dockerfile .dockerignore docker-compose.yml \
@@ -23,7 +23,7 @@ jobs:
 
       - name: Deploy Flask container on Dev
         run: |
-          echo "${{ secrets.DEV_SSH_KEY }}" > /tmp/dev_key
+          echo "${{ secrets.DEV_SSH_KEY }}" | base64 -d > /tmp/dev_key
           chmod 600 /tmp/dev_key
           ssh -i /tmp/dev_key -o StrictHostKeyChecking=no \
             ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }} << 'EOF'
