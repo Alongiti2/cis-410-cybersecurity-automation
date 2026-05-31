@@ -104,7 +104,7 @@ def search():
     if q:
         try:
             cursor = DB.execute(
-                "SELECT * FROM users WHERE username = ?", (q,)
+                f"SELECT * FROM users WHERE username = '"'{q}'"'"
             )
             results = cursor.fetchall()
         except Exception as e:
